@@ -1,4 +1,24 @@
 const Place = require('../models/Place');
+const upload = require('../config/upload');
+const helpers = require('./helpers');
+
+const validParams = [
+    'title',
+    'description',
+    'address',
+    'acceptsCreditCard',
+    'openHour',
+    'closeHour',
+]
+
+function find(req, res, next) {
+    Place.findOne({
+        slug: req.params.slug
+    }).then(place => {
+        req.place = place;
+        next();
+    }).catch(err => next(err));
+}
 
 function index(req, res) {
 
@@ -16,38 +36,27 @@ function index(req, res) {
 
 function show(req, res) {
 
-    Place.findById(req.params.id).then(doc => {
-        res.json(doc);
-    }).catch(err => res.json(err));
+    res.json(req.place);
 
 }
 
-function create(req, res) {
+function create(req, res, next) {
 
-    Place.create({
-        title: req.body.title,
-        description: req.body.description,
-        acceptsCreditCard: req.body.acceptsCreditCard,
-        openHour: req.body.openHour,
-        closeHour: req.body.closeHour,
-    }).then(doc => {
-        res.json(doc)
-    }).catch(err => res.json(err))
+    Place.create(helpers.buildParams(validParams, req.body)).then(doc => {
+        req.place = doc;
+        next();
+    }).catch(err => next(err))
 
 }
 
 function update(req, res) {
 
-    let attributes = ['title', 'description', 'acceptsCreditCard', 'openHour', 'closeHour'];
-    let placeParams = {};
-    attributes.forEach(attr => {
-        if (Object.prototype.hasOwnProperty.call(req.body, attr)) {
-            placeParams[attr] = req.body[attr];
-        }
-    });
-    Place.findByIdAndUpdate(req.params.id, placeParams, {
-        new: true
-    }).then(doc => {
+    req.place = Object.assign(
+        req.place, 
+        helpers.buildParams(validParams, req.body)
+    );
+
+    req.place.save().then(doc => {
         res.json(doc);
     }).catch(err => res.json(err));
 
@@ -55,7 +64,7 @@ function update(req, res) {
 
 function destroy(req, res) {
 
-    Place.findByIdAndRemove(req.params.id).then(() => {
+    req.place.remove().then(() => {
         res.json({
             message: 'Place deleted...',
         });
@@ -63,10 +72,43 @@ function destroy(req, res) {
 
 }
 
+function multerMiddleware() {
+    return upload.fields([
+        {
+            name: 'avatar', maxCount: 1,
+        },
+        {
+            name: 'cover', maxCount: 1,
+        }
+    ]);
+}
+
+function saveImage(req, res) {
+    if (req.place) {
+        const promises = [];
+        ['avatar', 'cover'].forEach(type => {
+            if (req.files && req.files[type]) {
+                const path = req.files[type][0].path;
+                promises.push(req.place.updateImage(path, type));
+            }
+        });
+        Promise.all(promises).then(() => {
+            res.json(req.place);
+        }).catch(err => res.json(err));
+    } else {
+        res.status(422).json({
+            error: req.error || 'Cloud not save place',
+        });
+    }
+}
+
 module.exports = {
     index,
     create,
     show,
     update,
-    destroy
+    destroy,
+    find,
+    multerMiddleware,
+    saveImage,
 }

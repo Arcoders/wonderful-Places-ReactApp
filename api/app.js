@@ -4,14 +4,15 @@ var path = require('path');
 var logger = require('morgan');
 
 const db = require('./config/database');
-const Place = require('./models/Place');
+const secrets = require('./config/secrets');
 
 db.connect();
 
 // var indexRouter = require('./routes/index');
-// var usersRouter = require('./routes/users');
-
+const usersRouter = require('./routes/users');
+const sessionsRouter = require('./routes/sessions');
 const placesRouter = require('./routes/places');
+const jwtMiddleware = require('express-jwt');
 
 var app = express();
 
@@ -24,10 +25,18 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
 app.use(express.static(path.join(__dirname, 'public')));
 
-// app.use('/', indexRouter);
-// app.use('/users', usersRouter);
+app.use(jwtMiddleware({
+  secret: secrets.jwtSecret
+}).unless({
+  path: ['/sessions', '/users'],
+  method: 'GET',
+}));
 
+// app.use('/', indexRouter);
+app.use('/users', usersRouter);
+app.use('/sessions', sessionsRouter);
 app.use('/places', placesRouter);
+
 
 // catch 404 and forward to error handler
 app.use(function(req, res, next) {

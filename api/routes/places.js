@@ -3,6 +3,7 @@ const express = require('express');
 let router = express.Router();
 
 const placesController = require('../controllers/PlacesController');
+const autenticateOwner = require('../middleware/authenticateOwner');
 
 router.route('/')
     .get(placesController.index)
@@ -13,8 +14,8 @@ router.route('/')
     )
 
 router.route('/:slug')
-    .get(placesController.find, placesController.show)
-    .patch(placesController.find, placesController.update)
-    .delete(placesController.find, placesController.destroy)
+    .get(placesController.find, autenticateOwner, placesController.show)
+    .patch(placesController.find, autenticateOwner, placesController.update)
+    .delete(placesController.find, autenticateOwner, placesController.destroy)
 
 module.exports = router;

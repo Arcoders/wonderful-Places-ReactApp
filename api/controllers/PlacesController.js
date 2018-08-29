@@ -16,6 +16,7 @@ function find(req, res, next) {
         slug: req.params.slug
     }).then(place => {
         req.place = place;
+        req.mainObj = place;
         next();
     }).catch(err => next(err));
 }
@@ -42,7 +43,10 @@ function show(req, res) {
 
 function create(req, res, next) {
 
-    Place.create(helpers.buildParams(validParams, req.body)).then(doc => {
+    const params = helpers.buildParams(validParams, req.body);
+    params['_user'] = req.user.id;
+
+    Place.create(params).then(doc => {
         req.place = doc;
         next();
     }).catch(err => next(err))

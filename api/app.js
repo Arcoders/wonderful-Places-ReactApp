@@ -5,6 +5,7 @@ var logger = require('morgan');
 
 const db = require('./config/database');
 const secrets = require('./config/secrets');
+const jwtMiddleware = require('express-jwt');
 
 db.connect();
 
@@ -12,7 +13,15 @@ db.connect();
 const usersRouter = require('./routes/users');
 const sessionsRouter = require('./routes/sessions');
 const placesRouter = require('./routes/places');
-const jwtMiddleware = require('express-jwt');
+const favoritesRouter = require('./routes/favorites');
+const visitsRouter = require('./routes/visits');
+const visitsPlacesRouter = require('./routes/visitsPlaces');
+const applicationsRouter = require('./routes/applications');
+
+const findAppBySecret = require('./middleware/findAppBySecret');
+const findAppById = require('./middleware/findAppByApplicationId');
+const authApp = require('./middleware/authApp')();
+const allowCORs = require('./middleware/allowCORS')();
 
 var app = express();
 
@@ -25,17 +34,31 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
 app.use(express.static(path.join(__dirname, 'public')));
 
+app.use(findAppBySecret);
+app.use(findAppById);
+app.use(authApp.unless({
+  method: 'OPTIONS'
+}));
+
+app.use(allowCORs.unless({
+  path: '/public'
+}));
+
 app.use(jwtMiddleware({
   secret: secrets.jwtSecret
 }).unless({
   path: ['/sessions', '/users'],
-  method: 'GET',
+  method: ['GET', 'OPTIONS'],
 }));
 
 // app.use('/', indexRouter);
 app.use('/users', usersRouter);
 app.use('/sessions', sessionsRouter);
 app.use('/places', placesRouter);
+app.use('/places', visitsPlacesRouter);
+app.use('/favorites', favoritesRouter);
+app.use('/visits', visitsRouter);
+app.use('/applications', applicationsRouter);
 
 
 // catch 404 and forward to error handler
